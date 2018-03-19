@@ -186,6 +186,7 @@ enum open_flags {
 struct view_column_data {
 	struct view_column *section;
 	const struct ident *author;
+	char commit_signature;
 	const char *commit_title;
 	const struct time *date;
 	const char *file_name;
