@@ -66,8 +66,8 @@ refs_request(struct view *view, enum request request, struct line *line)
 		const char *all_references_argv[] = {
 			GIT_MAIN_LOG(encoding_arg, commit_order_arg(),
 				"%(mainargs)", "",
-				refs_is_all(reference) ? "--all" : ref->name, "", "",
-				log_custom_pretty_arg())
+				refs_is_all(reference) ? "--all" : ref->name, "",
+				show_notes_arg(), log_custom_pretty_arg())
 		};
 
 		if (!argv_format(main_view.env, &main_view.argv, all_references_argv, false, false))
@@ -164,7 +164,8 @@ refs_open(struct view *view, enum open_flags flags)
 		return code;
 
 	if (!view->lines)
-		view->sort.current = get_view_column(view, VIEW_COLUMN_REF);
+		if (!(view->sort.current = get_view_column(view, VIEW_COLUMN_REF)))
+			die("Failed to setup the refs view");
 	refs_open_visitor(view, refs_all);
 	foreach_ref(refs_open_visitor, view);
 	resort_view(view, true);
