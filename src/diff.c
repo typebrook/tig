@@ -275,9 +275,8 @@ diff_common_read(struct view *view, const char *data, struct diff_state *state)
 		state->reading_diff_chunk = false;
 
 	} else if (type == LINE_DIFF_CHUNK) {
-		state->combined_diff = (strstr(data, "@@@") == data);
-		const int len = state->combined_diff ? STRING_SIZE("@@@") : STRING_SIZE("@@");
-		const char *context = strstr(data + len, state->combined_diff ? "@@@" : "@@");
+		const int len = chunk_header_marker_length(data);
+		const char *context = strstr(data + len, "@@");
 		struct line *line =
 			context ? add_line_text_at(view, view->lines, data, LINE_DIFF_CHUNK, len)
 				: NULL;
@@ -290,6 +289,7 @@ diff_common_read(struct view *view, const char *data, struct diff_state *state)
 		box->cell[0].length = (context + len) - data;
 		box->cell[1].length = strlen(context + len);
 		box->cell[box->cells++].type = LINE_DIFF_STAT;
+		state->combined_diff = (len > 2);
 		state->reading_diff_chunk = true;
 		return true;
 
@@ -685,7 +685,12 @@ diff_common_edit(struct view *view, enum request request, struct line *line)
 		lineno = diff_get_lineno(view, line);
 	}
 
-	if (!file || !string_concat_path(path, repo.cdup, file) || access(path, R_OK)) {
+	if (!file) {
+		report("Nothing to edit");
+		return REQ_NONE;
+	}
+
+	if (!string_concat_path(path, repo.cdup, file) || access(path, R_OK)) {
 		report("Failed to open file: %s", file);
 		return REQ_NONE;
 	}
