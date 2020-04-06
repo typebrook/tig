@@ -13,6 +13,8 @@ Improvements:
  - Handle GIT_WORK_TREE environment variable.
  - The blame view requires a working tree.
  - Fix use of deprecated vwprintw() function.
+ - Update utf8proc to v2.5.0.
+ - Add --word-diff=plain colorizing support. (#221)
 
 Bug fixes:
 
@@ -21,6 +23,7 @@ Bug fixes:
  - Fix crash on adding a line to a view. (#523)
  - Fix memory leak in diff unit.
  - Fix loop after refresh or change in refs/main split view. (#991)
+ - Fix occasional crash on custom key bindings. (#1001)
 
 tig-2.5.0
 ---------
