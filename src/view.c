@@ -1443,6 +1443,8 @@ get_view_column(struct view *view, enum view_column_type type)
 	return NULL;
 }
 
+#define MAXWIDTH(maxwidth)	(width == 0 ? maxwidth < 0 ? -maxwidth * view->width / 100 : maxwidth : 0)
+
 bool
 view_column_info_update(struct view *view, struct line *line)
 {
@@ -1461,7 +1463,7 @@ view_column_info_update(struct view *view, struct line *line)
 		switch (column->type) {
 		case VIEW_COLUMN_AUTHOR:
 			width = column->opt.author.width;
-			maxwidth = width == 0 ? column->opt.author.maxwidth : 0;
+			maxwidth = MAXWIDTH(column->opt.author.maxwidth);
 			break;
 
 		case VIEW_COLUMN_COMMIT_TITLE:
@@ -1473,7 +1475,7 @@ view_column_info_update(struct view *view, struct line *line)
 
 		case VIEW_COLUMN_FILE_NAME:
 			width = column->opt.file_name.width;
-			maxwidth = width == 0 ? column->opt.file_name.maxwidth : 0;
+			maxwidth = MAXWIDTH(column->opt.file_name.maxwidth);
 			break;
 
 		case VIEW_COLUMN_FILE_SIZE:
@@ -1506,7 +1508,7 @@ view_column_info_update(struct view *view, struct line *line)
 
 		case VIEW_COLUMN_REF:
 			width = column->opt.ref.width;
-			maxwidth = width == 0 ? column->opt.ref.maxwidth : 0;
+			maxwidth = MAXWIDTH(column->opt.ref.maxwidth);
 			break;
 
 		case VIEW_COLUMN_SECTION:
@@ -1659,7 +1661,14 @@ add_line_text_at_(struct view *view, unsigned long pos, const char *text, size_t
 struct line *
 add_line_text_at(struct view *view, unsigned long pos, const char *text, enum line_type type, size_t cells)
 {
-	return add_line_text_at_(view, pos, text, strlen(text), type, cells, false);
+	size_t textlen = strlen(text);
+
+	/* If the filename contains a space, Git adds a tab at the end of
+	 * the line, to satisfy GNU patch. Drop it to correct the filename. */
+	if ((type == LINE_DIFF_ADD_FILE || type == LINE_DIFF_DEL_FILE) && text[textlen - 1] == '\t')
+		textlen--;
+
+	return add_line_text_at_(view, pos, text, textlen, type, cells, false);
 }
 
 struct line *
