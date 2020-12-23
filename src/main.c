@@ -249,7 +249,9 @@ main_check_argv(struct view *view, const char *argv[])
 		if (!rev_flags.with_graph)
 			state->with_graph = false;
 		arg += rev_flags.search_offset;
-		if (*arg && !*view->env->search)
+		/* Copy the pattern to search buffer only when starting
+		 * from the main view. */
+		if (*arg && !*view->ref && !view->prev)
 			string_ncopy(view->env->search, arg, strlen(arg));
 	}
 
@@ -362,8 +364,6 @@ main_get_column_data(struct view *view, const struct line *line, struct view_col
 	column_data->author = commit->author;
 	column_data->date = &commit->time;
 	column_data->id = commit->id;
-	if (state->reflogs)
-		column_data->reflog = state->reflog[line->lineno - 1];
 
 	column_data->commit_title = commit->title;
 	if (state->with_graph) {
@@ -585,9 +585,16 @@ main_select(struct view *view, struct line *line)
 		string_ncopy(view->ref, commit->title, strlen(commit->title));
 		status_stage_info(view->env->status, line->type, NULL);
 	} else {
+		struct main_state *state = view->private;
 		const struct ref *ref = main_get_commit_refs(line, commit);
 
-		string_copy_rev(view->ref, commit->id);
+		if (state->reflogs) {
+			assert(state->reflogs >= line->lineno);
+			string_ncopy(view->ref, state->reflog[line->lineno - 1],
+				     strlen(state->reflog[line->lineno - 1]));
+		} else {
+			string_copy_rev(view->ref, commit->id);
+		}
 		if (ref)
 			ref_update_env(view->env, ref, true);
 	}
