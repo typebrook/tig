@@ -188,6 +188,8 @@ view_driver(struct view *view, enum request request)
 	case REQ_SCROLL_LINE_UP:
 	case REQ_SCROLL_PAGE_DOWN:
 	case REQ_SCROLL_PAGE_UP:
+	case REQ_SCROLL_HALF_PAGE_DOWN:
+	case REQ_SCROLL_HALF_PAGE_UP:
 	case REQ_SCROLL_WHEEL_DOWN:
 	case REQ_SCROLL_WHEEL_UP:
 		scroll_view(view, request);
@@ -652,14 +654,19 @@ handle_mouse_event(void)
 		return opt_mouse_wheel_cursor ? REQ_MOVE_WHEEL_UP : REQ_SCROLL_WHEEL_UP;
 
 	if (event.bstate & BUTTON1_PRESSED) {
-		if (event.y == view->pos.lineno - view->pos.offset) {
-			/* Click is on the same line, perform an "ENTER" */
+		int y = getbegy(view->win);
+		unsigned long lineno = (event.y - y) + view->pos.offset;
+
+		if (lineno == view->pos.lineno) {
+			/* Click is on the same line, perform an "ENTER"
+			 * unless we are outside of diffstat in diff as
+			 * that might move/scroll ... */
+			if (view_has_flags(view, VIEW_DIFF_LIKE) &&
+			    view->line[lineno].type != LINE_DIFF_STAT)
+				return REQ_NONE;
 			return REQ_ENTER;
 
 		} else {
-			int y = getbegy(view->win);
-			unsigned long lineno = (event.y - y) + view->pos.offset;
-
 			select_view_line(view, lineno);
 			update_view_title(view);
 			report_clear();

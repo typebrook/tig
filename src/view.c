@@ -101,6 +101,9 @@ void
 scroll_view(struct view *view, enum request request)
 {
 	int lines = 1;
+	unsigned long orig_offset, orig_lineno;
+	int move_lines;
+	int i;
 
 	assert(view_is_displayed(view));
 
@@ -131,21 +134,29 @@ scroll_view(struct view *view, enum request request)
 		report_clear();
 		return;
 	case REQ_SCROLL_PAGE_DOWN:
-		lines = view->height;
+	case REQ_SCROLL_HALF_PAGE_DOWN:
+		lines = request == REQ_SCROLL_PAGE_DOWN ? view->height : view->height / 2;
 		/* Fall-through */
 	case REQ_SCROLL_WHEEL_DOWN:
 	case REQ_SCROLL_LINE_DOWN:
 		if (view->pos.offset + lines > view->lines)
 			lines = view->lines - view->pos.offset;
 
+		// do not scroll past bottom ...
+		if ((view->pos.offset + view->height + lines) > view->lines)
+			lines = view->lines - view->pos.offset - view->height;
+
 		if (lines == 0 || view->pos.offset + view->height >= view->lines) {
 			report("Cannot scroll beyond the last line");
+			// if wanted to move down when can no longer scroll ...
+			// move_view(view, REQ_MOVE_DOWN);
 			return;
 		}
 		break;
 
 	case REQ_SCROLL_PAGE_UP:
-		lines = view->height;
+	case REQ_SCROLL_HALF_PAGE_UP:
+		lines = request == REQ_SCROLL_PAGE_UP ? view->height : view->height / 2;
 		/* Fall-through */
 	case REQ_SCROLL_LINE_UP:
 	case REQ_SCROLL_WHEEL_UP:
@@ -154,6 +165,8 @@ scroll_view(struct view *view, enum request request)
 
 		if (lines == 0) {
 			report("Cannot scroll beyond the first line");
+			// if wanted to move up when can no longer scroll ...
+			// move_view(view, REQ_MOVE_UP);
 			return;
 		}
 
@@ -164,7 +177,15 @@ scroll_view(struct view *view, enum request request)
 		die("request %d not handled in switch", request);
 	}
 
+	orig_offset = view->pos.offset;
+	orig_lineno = view->pos.lineno;
+
 	do_scroll_view(view, lines);
+
+	move_lines = (view->pos.offset - orig_offset) - (view->pos.lineno - orig_lineno);
+
+	for (i = 0; i < ABS(move_lines); i++)
+		move_view(view, move_lines < 0 ? REQ_MOVE_UP : REQ_MOVE_DOWN);
 }
 
 /* Cursor moving */
@@ -204,11 +225,13 @@ move_view(struct view *view, enum request request)
 		break;
 
 	case REQ_MOVE_WHEEL_DOWN:
-		steps = opt_mouse_scroll;
+		steps = view->pos.lineno + opt_mouse_scroll >= view->lines
+		      ? view->lines - view->pos.lineno - 1 : opt_mouse_scroll;
 		break;
 
 	case REQ_MOVE_WHEEL_UP:
-		steps = -opt_mouse_scroll;
+		steps = opt_mouse_scroll > view->pos.lineno
+		      ? -view->pos.lineno : -opt_mouse_scroll;
 		break;
 
 	case REQ_MOVE_UP:
